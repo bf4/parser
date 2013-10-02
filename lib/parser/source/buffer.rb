@@ -23,6 +23,10 @@ module Parser
           )
         /x
 
+      # @param [String] string
+      # @return [nil] For an empty string
+      # @return [nil] When no encoding recognized
+      # @return [Encoding] The derived encoding
       def self.recognize_encoding(string)
         return if string.empty?
 
@@ -49,6 +53,8 @@ module Parser
       # in an arbitrary valid Ruby encoding and returns an UTF-8 encoded
       # string.
       #
+      # @param [String] string
+      # @return [String] UTF-8 encoding string
       def self.reencode_string(string)
         original_encoding = string.encoding
         detected_encoding = recognize_encoding(string.force_encoding(Encoding::BINARY))
@@ -64,6 +70,8 @@ module Parser
         end
       end
 
+      # @param [String] name source filename
+      # @param [Numeric] first_line
       def initialize(name, first_line = 1)
         @name        = name
         @source      = nil
@@ -73,6 +81,9 @@ module Parser
         @line_begins = nil
       end
 
+      # Reads the file specified by @name into the @source
+      # @see #source
+      # @return self
       def read
         File.open(@name, 'rb') do |io|
           self.source = io.read
@@ -81,6 +92,8 @@ module Parser
         self
       end
 
+      # @raise [RuntimeError] when @source is nil
+      # @return [String] source
       def source
         if @source.nil?
           raise RuntimeError, 'Cannot extract source from uninitialized Source::Buffer'
@@ -89,6 +102,8 @@ module Parser
         @source
       end
 
+      # Saves the given input as #raw_source with a UTF-8 encoded String
+      # @param source [String]
       def source=(source)
         if defined?(Encoding)
           source = source.dup if source.frozen?
@@ -98,6 +113,9 @@ module Parser
         self.raw_source = source
       end
 
+      # @raise [ArgumentError] when @source is already set
+      # Sets @source as a frozen String with UNIX line-braks
+      # @param source [String]
       def raw_source=(source)
         if @source
           raise ArgumentError, 'Source::Buffer is immutable'
@@ -106,12 +124,18 @@ module Parser
         @source = source.gsub(/\r\n/, "\n").freeze
       end
 
+      # @param position [Numeric]
+      # @return [Array(Numeric,Numeric)] an Array of first_line + position line, postion  - postion line begin
       def decompose_position(position)
         line_no, line_begin = line_for(position)
 
         [ @first_line + line_no, position - line_begin ]
       end
 
+      # @param lineno [Numeric]
+      # @return [Array<Numeric>] An array of source lines in the range from the first_line
+      #   to the given lineno.
+      # @note EOF symbols are removed from the source lines.
       def source_line(lineno)
         unless @lines
           @lines = @source.lines.to_a
